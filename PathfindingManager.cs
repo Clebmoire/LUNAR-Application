@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -20,24 +20,38 @@ public class PathfindingManager : MonoBehaviour
         InitializeWaypoints();
         SetupLineRenderer();
         pinSpawner = FindObjectOfType<PinSpawner>();
+        Debug.Log("🟢 Unity PathfindingManager started.");
 
-#if UNITY_ANDROID && !UNITY_EDITOR
-        string destination = GetDestinationFromAndroid();
-        if (!string.IsNullOrEmpty(destination))
+    #if UNITY_ANDROID && !UNITY_EDITOR
+        try
         {
-            Debug.Log("📍 DESTINATION from Android intent: " + destination);
-            ReceiveDestinationFromAndroid(destination);
+            using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+            {
+                var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+                var intent = activity.Call<AndroidJavaObject>("getIntent");
+                string destination = intent.Call<string>("getStringExtra", "destination");
+
+                Debug.Log($"📍 DESTINATION from Android intent: {destination}");
+                if (!string.IsNullOrEmpty(destination))
+                {
+                    ReceiveDestinationFromAndroid(destination);
+                }
+                else
+                {
+                    Debug.LogWarning("⚠️ Destination not found in intent extras.");
+                }
+            }
         }
-        else
+        catch (System.Exception ex)
         {
-            Debug.LogWarning("⚠️ Destination not found in intent extras.");
+            Debug.LogError("❌ Exception reading intent: " + ex.Message);
         }
-#else
+    #endif
+
         if (testInEditor)
         {
             ComputeAndRenderPath(testStartName, testDestinationName);
         }
-#endif
     }
 
     void InitializeWaypoints()
